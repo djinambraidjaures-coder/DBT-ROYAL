@@ -1,10 +1,13 @@
-// Ouverture de pack (d'après la maquette) : le paquet tremble, se déchire,
-// puis les cartes sortent et se retournent une à une avec un éclat selon la
+// Dépouillement d'une urne : l'urne tremble, le cadenas saute, l'assesseur
+// tamponne « A VOTÉ ! », le couvercle s'ouvre et les enveloppes jaillissent ;
+// chaque bulletin se déplie pour révéler l'objet, avec un éclat selon la
 // rareté. Chaque citation est une vraie phrase sourcée.
 
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useMemo, useRef, useState } from 'react';
+import { aDesPoses, PersoAnime } from '../composants/PersoAnime';
 import { Portrait } from '../composants/Portrait';
+import { Urne } from '../composants/Urne';
 import { contenu, nomDe } from '../donnees';
 import { useJeu, type Ecran as EcranT } from '../etat';
 import { jouer } from '../lib/son';
@@ -19,47 +22,22 @@ import { partagerTirage } from '../lib/partage';
 const ETOILES: Record<Rarete, number> = { commune: 1, rare: 2, epique: 3, legendaire: 5 };
 const LIBELLE: Record<Rarete, string> = { commune: 'COMMUNE', rare: 'RARE', epique: 'ÉPIQUE', legendaire: 'LÉGENDAIRE' };
 const EFFETS_LEGENDE: Record<string, string> = { attaque: 'GROSSE ATTAQUE', bouclier: 'BOUCLIER', soin: 'SOIN DE 20 PV', vol_combo: 'VOL DE COMBO' };
+const COULEUR_ENVELOPPE: Record<Rarete, string> = { commune: '#d9c38f', rare: '#ff9a1f', epique: '#b46cff', legendaire: '#ffcc33' };
 
-export function PaquetPack({ taille = 200 }: { taille?: number }) {
+/** Enveloppe qui jaillit de l'urne vers l'emplacement de son bulletin. */
+function EnveloppeVolante({ index, total, rarete }: { index: number; total: number; rarete: Rarete }) {
+  const dx = (index - (total - 1) / 2) * 110;
   return (
-    <svg viewBox="0 0 200 230" width={taille} height={taille * 1.15} className="paquet-pack" aria-label="Pack Références politiques">
-      <defs>
-        <linearGradient id="alu" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#0047ab" />
-          <stop offset="0.36" stopColor="#2f6bff" />
-          <stop offset="0.37" stopColor="#ffffff" />
-          <stop offset="0.6" stopColor="#e9eefc" />
-          <stop offset="0.61" stopColor="#ff4d5e" />
-          <stop offset="1" stopColor="#c1121f" />
-        </linearGradient>
-        <linearGradient id="reflet" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.5" stopColor="#fff" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d="M18 18 L182 10 L190 212 L12 220 Z" fill="url(#alu)" stroke="#0b1340" strokeWidth="5" strokeLinejoin="round" />
-      <path d="M18 18 l12 -10 l10 10 l10 -10 l10 10 l10 -10 l10 10 l10 -10 l10 10 l10 -10 l10 10 l10 -10 l10 10 l10 -10 l10 10 l10 -10 l12 8" fill="none" stroke="#0b1340" strokeWidth="4" />
-      <rect x="30" y="40" width="40" height="150" fill="url(#reflet)" transform="rotate(12 50 115)" />
-      <ellipse cx="100" cy="112" rx="70" ry="60" fill="#0b1a5c" stroke="#ffffff" strokeWidth="5" />
-      <text x="100" y="86" textAnchor="middle" fontFamily="Bangers, 'Luckiest Guy', system-ui" fontSize="22" fill="#fff" transform="rotate(-8 100 112)">
-        PACK
-      </text>
-      <text x="100" y="108" textAnchor="middle" fontFamily="Bangers, 'Luckiest Guy', system-ui" fontSize="20" fill="#fff" transform="rotate(-8 100 112)">
-        RÉFÉRENCES
-      </text>
-      <text x="100" y="130" textAnchor="middle" fontFamily="Bangers, 'Luckiest Guy', system-ui" fontSize="20" fill="#fff" transform="rotate(-8 100 112)">
-        POLITIQUES
-      </text>
-      <g transform="translate(84 136)" fill="#fff">
-        <path d="M0 10 L16 2 L32 10 Z" />
-        <rect x="3" y="12" width="4" height="12" />
-        <rect x="11" y="12" width="4" height="12" />
-        <rect x="19" y="12" width="4" height="12" />
-        <rect x="27" y="12" width="4" height="12" />
-        <rect x="0" y="25" width="34" height="4" />
-      </g>
-    </svg>
+    <motion.svg
+      viewBox="0 0 70 46"
+      className="urne-enveloppe-volante"
+      initial={{ x: 0, y: 0, scale: 0.5, rotate: 0, opacity: 1 }}
+      animate={{ x: [0, dx * 0.5, dx], y: [0, -220, -60], scale: [0.5, 1.1, 0.9], rotate: [0, index % 2 ? 200 : -200, 360], opacity: [1, 1, 0] }}
+      transition={{ duration: 0.8, delay: index * 0.12, ease: 'easeOut' }}
+    >
+      <rect x="2" y="2" width="66" height="42" rx="3" fill={COULEUR_ENVELOPPE[rarete]} stroke="#0b1340" strokeWidth="3" />
+      <path d="M2 2 L35 26 L68 2" fill="none" stroke="#0b1340" strokeWidth="3" />
+    </motion.svg>
   );
 }
 
@@ -109,15 +87,20 @@ function infosObjet(r: ResultatAjout) {
 
 function CarteTirage({ r, index, reduit }: { r: ResultatAjout; index: number; reduit: boolean }) {
   const info = infosObjet(r);
-  const delai = reduit ? 0 : 0.25 + index * 0.35;
+  // Les bulletins se déplient après la sortie des enveloppes ; une légendaire se fait attendre (roulement de tambour).
+  const delai = reduit ? 0 : 0.9 + index * 0.35 + (info.rarete === 'legendaire' ? 0.8 : 0);
   return (
     <motion.div
-      className={`carte-tirage tirage-${info.rarete}`}
-      initial={reduit ? { opacity: 0 } : { rotateY: 180, y: 160, scale: 0.4, opacity: 0 }}
-      animate={{ rotateY: 0, y: 0, scale: 1, opacity: 1 }}
-      transition={{ delay: delai, type: 'spring', stiffness: 110, damping: 14 }}
+      className={`carte-tirage bulletin tirage-${info.rarete}`}
+      initial={reduit ? { opacity: 0 } : { rotateX: -90, scaleY: 0.2, y: 60, opacity: 0 }}
+      animate={{ rotateX: 0, scaleY: 1, y: 0, opacity: 1 }}
+      transition={{ delay: delai, type: 'spring', stiffness: 120, damping: 13 }}
       onAnimationStart={() => {
-        setTimeout(() => jouer(info.rarete === 'legendaire' ? 'legendaire' : info.rarete === 'commune' ? 'clic' : 'bonne'), delai * 1000);
+        if (info.rarete === 'legendaire' && !reduit) setTimeout(() => jouer('tambour'), Math.max(0, delai - 0.8) * 1000);
+        setTimeout(() => {
+          jouer('papier');
+          jouer(info.rarete === 'legendaire' ? 'legendaire' : info.rarete === 'commune' ? 'clic' : 'bonne');
+        }, delai * 1000);
       }}
     >
       <div className="tirage-onglet">
@@ -126,7 +109,13 @@ function CarteTirage({ r, index, reduit }: { r: ResultatAjout; index: number; re
         <span className="etoiles">{'★'.repeat(ETOILES[info.rarete])}</span>
       </div>
       <div className="tirage-art">
-        {info.persoId ? <Portrait id={info.persoId} taille={220} /> : <span className="tirage-icone-grande">{r.objet.type === 'chaos' ? '💥' : '👔'}</span>}
+        {info.persoId && aDesPoses(info.persoId) ? (
+          <PersoAnime id={info.persoId} pose={info.rarete === 'legendaire' ? 'victoire' : 'moquerie'} taille={200} reduit={reduit} className="perso-vignette" />
+        ) : info.persoId ? (
+          <Portrait id={info.persoId} taille={220} />
+        ) : (
+          <span className="tirage-icone-grande">{r.objet.type === 'chaos' ? '💥' : '👔'}</span>
+        )}
         {info.bulle && (
           <div className="tirage-bulle">
             <span>« {info.bulle} »</span>
@@ -148,13 +137,15 @@ function CarteTirage({ r, index, reduit }: { r: ResultatAjout; index: number; re
   );
 }
 
+type Etape = 'attente' | 'secoue' | 'tampon' | 'ouverte';
+
 export function Depouillement({ urnes, retour }: { urnes: string[]; retour: EcranT }) {
   const { profil, majProfil, aller, animationsReduites } = useJeu();
   const c = contenu();
   const [file] = useState(() => [...urnes]);
   const [index, setIndex] = useState(0);
   const [resultats, setResultats] = useState<ResultatAjout[] | null>(null);
-  const [secoue, setSecoue] = useState(false);
+  const [etape, setEtape] = useState<Etape>('attente');
   const [message, setMessage] = useState<string | null>(null);
   const particules = useRef<ApiParticules>(null);
   const profilRef = useRef(profil);
@@ -163,23 +154,30 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
   const restantes = file.length - index;
 
   const ouvrir = () => {
-    if (!urne || resultats || secoue) return;
-    setSecoue(true);
+    if (!urne || resultats || etape !== 'attente') return;
+    const r = animationsReduites;
+    setEtape('secoue');
     jouer('urne');
+    setTimeout(() => {
+      jouer('cadenas');
+      jouer('tampon');
+      setEtape('tampon');
+    }, r ? 50 : 700);
     setTimeout(
       () => {
         const objets = ouvrirUrne(urne, c.contenuUrnes, new Alea(graineAleatoire()));
         const p = profilRef.current;
         const i = p.urnes.indexOf(urne.id);
         const sans = i >= 0 ? { ...p, urnes: [...p.urnes.slice(0, i), ...p.urnes.slice(i + 1)] } : p;
-        const r = ajouterObjets(sans, objets);
-        majProfil(() => r.profil);
-        setResultats(r.resultats);
-        setSecoue(false);
+        const res = ajouterObjets(sans, objets);
+        majProfil(() => res.profil);
+        setResultats(res.resultats);
+        setEtape('ouverte');
+        jouer('applaudissements');
         particules.current?.emettre('confettis', { duree: 1.6, nombre: 5 });
-        if (r.resultats.some((x) => x.objet.rarete === 'legendaire')) setTimeout(() => particules.current?.emettre('etincelles', { x: 0.8, y: 0.45, nombre: 80 }), 1500);
+        if (res.resultats.some((x) => x.objet.rarete === 'legendaire')) setTimeout(() => particules.current?.emettre('etincelles', { x: 0.5, y: 0.45, nombre: 90 }), 2200);
       },
-      animationsReduites ? 100 : 1000,
+      r ? 100 : 1500,
     );
   };
 
@@ -187,6 +185,7 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
     jouer('clic');
     setResultats(null);
     setMessage(null);
+    setEtape('attente');
     setIndex(index + 1);
   };
 
@@ -212,24 +211,25 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
 
   const nbRefs = resultats?.filter((r) => r.objet.type === 'ref').length ?? 0;
   const aLegendaire = !!resultats?.some((r) => r.objet.rarete === 'legendaire');
+  const raretes = resultats?.map((r) => infosObjet(r).rarete);
 
   return (
     <main className="ecran-pack">
       <Particules ref={particules} reduit={animationsReduites} />
 
       <div className="pack-coin">
-        <PaquetPack taille={150} />
+        <Urne couleur={urne.couleur} enveloppes={Math.max(0, restantes - 1)} taille={130} id="coin" cadenas />
       </div>
 
       <header className="pack-entete">
         <div className="titre-pinceau grand">
-          <h1>OUVERTURE DE PACK !</h1>
+          <h1>DÉPOUILLEMENT !</h1>
           <p>
             {resultats
               ? nbRefs === resultats.length
                 ? `${nbRefs} RÉFÉRENCE${nbRefs > 1 ? 'S' : ''} OBTENUE${nbRefs > 1 ? 'S' : ''} !`
-                : `${resultats.length} OBJETS OBTENUS, DONT ${nbRefs} RÉFÉRENCE${nbRefs > 1 ? 'S' : ''} !`
-              : `${urne.nom.toUpperCase()} · ${urne.objets} OBJETS À DÉCOUVRIR`}
+                : `${resultats.length} BULLETINS, DONT ${nbRefs} RÉFÉRENCE${nbRefs > 1 ? 'S' : ''} !`
+              : `${urne.nom.toUpperCase()} · ${urne.objets} BULLETINS À DÉPOUILLER`}
           </p>
         </div>
         {aLegendaire && (
@@ -249,21 +249,46 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
             type="button"
             className="pack-a-ouvrir"
             onClick={ouvrir}
-            animate={secoue ? { rotate: [0, -10, 10, -12, 12, -6, 0], scale: [1, 1.08, 1.12, 1.2] } : { y: [0, -10, 0], rotate: [-3, 3, -3] }}
-            transition={secoue ? { duration: 1 } : { duration: 2, repeat: Infinity }}
+            animate={
+              etape === 'attente'
+                ? { y: [0, -10, 0], rotate: [-2, 2, -2] }
+                : { rotate: [0, -8, 8, -10, 10, -6, 6, 0], scale: [1, 1.05, 1.1, 1.15] }
+            }
+            transition={etape === 'attente' ? { duration: 2, repeat: Infinity } : { duration: 0.9 }}
           >
-            <PaquetPack taille={260} />
+            <Urne couleur={urne.couleur} enveloppes={urne.objets} taille={260} id="centre" cadenas={etape === 'attente' || etape === 'secoue'} />
           </motion.button>
+          <AnimatePresence>
+            {etape === 'tampon' && (
+              <motion.div
+                className="tampon-a-vote"
+                initial={{ scale: 3, opacity: 0, rotate: -25, x: '-50%', y: '-50%' }}
+                animate={{ scale: 1, opacity: 1, rotate: -12, x: '-50%', y: '-50%' }}
+                exit={{ opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+              >
+                A VOTÉ !
+              </motion.div>
+            )}
+          </AnimatePresence>
           <span className="pack-compte">
-            Pack {index + 1}/{file.length}
+            Urne {index + 1}/{file.length}
           </span>
         </div>
       ) : (
-        <section className={`rangee-tirage ${resultats.length > 5 ? 'nombreux' : ''}`}>
-          {resultats.map((r, i) => (
-            <CarteTirage key={i} r={r} index={i} reduit={animationsReduites} />
-          ))}
-        </section>
+        <>
+          {!animationsReduites && (
+            <div className="pack-centre urne-ouverte" aria-hidden>
+              <Urne couleur={urne.couleur} enveloppes={0} taille={160} id="ouverte" ouverte cadenas={false} />
+              {raretes?.map((rar, i) => <EnveloppeVolante key={i} index={i} total={raretes.length} rarete={rar} />)}
+            </div>
+          )}
+          <section className={`rangee-tirage ${resultats.length > 5 ? 'nombreux' : ''}`}>
+            {resultats.map((r, i) => (
+              <CarteTirage key={i} r={r} index={i} reduit={animationsReduites} />
+            ))}
+          </section>
+        </>
       )}
 
       <footer className="pack-pied">
@@ -276,7 +301,7 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
           des légendes !
         </div>
         <button type="button" className="bouton-toucher" onClick={resultats ? continuer : ouvrir}>
-          {resultats ? (restantes > 1 ? 'TOUCHE POUR CONTINUER' : 'TOUCHE POUR TERMINER') : 'TOUCHE POUR OUVRIR'}
+          {resultats ? (restantes > 1 ? 'TOUCHE POUR L’URNE SUIVANTE' : 'TOUCHE POUR TERMINER') : 'TOUCHE POUR DÉPOUILLER'}
         </button>
         <button
           type="button"
@@ -290,11 +315,11 @@ export function Depouillement({ urnes, retour }: { urnes: string[]; retour: Ecra
                 return { rarete: LIBELLE[i.rarete], nom: i.nom, texte: i.bulle };
               }),
             );
-            setMessage(r === 'echec' ? 'Partage impossible sur cet appareil.' : r === 'telecharge' ? 'Image du tirage téléchargée !' : 'Tirage partagé !');
+            setMessage(r === 'echec' ? 'Partage impossible sur cet appareil.' : r === 'telecharge' ? 'Image du dépouillement téléchargée !' : 'Dépouillement partagé !');
           }}
         >
           <span className="partage-texte">
-            📱 ➜ PARTAGE TON TIRAGE
+            📱 ➜ PARTAGE TON DÉPOUILLEMENT
             <br />
             SUR LES RÉSEAUX !
           </span>

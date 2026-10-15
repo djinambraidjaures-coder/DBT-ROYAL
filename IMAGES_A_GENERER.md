@@ -79,10 +79,22 @@ Remplace **[COULEUR]** par la couleur indiquée. Choisis librement l'expression 
 
 Elles ont toutes un portrait provisoire tiré de ta maquette.
 
+## 7. Planches de poses (personnages animés)
+
+Le débat anime les personnages à partir d'une **planche de 8 poses sur fond vert**. 20 personnages en ont déjà (voir `src/data/poses.json`), mais beaucoup de cases ont été écartées parce qu'elles montraient le visage d'un autre personnage.
+
+**À générer en priorité :** Glucksmann, Retailleau, Ruffin, Tondelier (aucune planche), puis Lavrilleux, Roussel, Royal et Wauquiez (rangée du bas coupée : poses 5 à 8 manquantes), puis les poses manquantes listées dans `poses.json` (par exemple Macron n'a ni colère, ni gêne, ni K.O.).
+
+**Format :** une planche par personnage, c'est plus sûr qu'une planche de groupe. 1536 × 768, 2 rangées de 4 cases, fond vert uni `#00FF00`, aucun texte.
+
+> [style commun] Planche de 8 vignettes de **[NOM]**, **le même personnage dans les 8 cases, avec exactement le même visage, la même coiffure et le même costume**, en buste, tourné vers la droite, sur fond vert uni #00FF00 sans dégradé ni ombre, cases séparées par un espace vert. Rangée du haut, de gauche à droite : 1 confiant et neutre, 2 index levé qui argumente, 3 pointe l'adversaire du doigt en attaquant, 4 crie de colère. Rangée du bas : 5 gêné avec une goutte de sueur, 6 sourire moqueur en coin, 7 K.O. avec yeux en spirale et étoiles autour de la tête, 8 victoire poing levé. Aucun autre personnage, aucun texte.
+
+Ensuite : dépose la planche dans `outils/planches/`, ajoute-la dans `outils/decouper-planches.mjs`, indique les cases à garder dans `outils/planches/selection.json`, puis lance `node outils/decouper-planches.mjs` (voir le README).
+
 ## Ordre conseillé
 
-1. Les 3 portraits manquants (Retailleau, Ruffin, Tondelier).
-2. Le décor du plateau.
-3. Les 12 candidats en pied : c'est ce qui donnera le rendu de ta maquette de combat.
+1. Les planches de poses de Glucksmann, Retailleau, Ruffin et Tondelier (section 7).
+2. Les 3 portraits manquants (Retailleau, Ruffin, Tondelier).
+3. Le décor du plateau.
 4. Les portraits en haute définition, pour remplacer les découpes provisoires.
 5. Le modérateur et les intervenants.

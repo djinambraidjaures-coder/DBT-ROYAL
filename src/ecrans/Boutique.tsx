@@ -6,6 +6,7 @@ import { paiement } from '../lib/paiement';
 import { jouer } from '../lib/son';
 import { acheterUrne, cleJour, crediterParrainages, type Monnaie } from '../moteur/economie';
 import type { Urne } from '../moteur/tirage-urnes';
+import { Urne as UrneSvg } from '../composants/Urne';
 
 export function Boutique() {
   const { aller, profil, majProfil } = useJeu();
@@ -42,7 +43,7 @@ export function Boutique() {
         <section className="offre-du-jour">
           <h2>Offre du jour</h2>
           <div className="carte-urne" style={{ ['--couleur' as string]: urneOffre.couleur }}>
-            <UrneDessin couleur={urneOffre.couleur} />
+            <UrneDessin urne={urneOffre} />
             <strong>{offre.libelle}</strong>
             <Bouton variante="or" onClick={() => acheter(urneOffre, 'paluches', offre.prix.paluches, offre.quantite ?? 1)}>
               <IconePaluche /> {offre.prix.paluches}
@@ -55,7 +56,7 @@ export function Boutique() {
       <div className="grille-urnes">
         {urnes.map((u) => (
           <div key={u.id} className="carte-urne" style={{ ['--couleur' as string]: u.couleur }}>
-            <UrneDessin couleur={u.couleur} />
+            <UrneDessin urne={u} />
             <strong>{u.nom}</strong>
             <small>
               {u.objets} objets{u.garanti ? ` · au moins 1 ${u.garanti === 'legendaire' ? 'légendaire' : u.garanti}` : ''}
@@ -115,15 +116,10 @@ export function Boutique() {
   );
 }
 
-export function UrneDessin({ couleur, taille = 90 }: { couleur: string; taille?: number }) {
+function UrneDessin({ urne, taille = 120 }: { urne: Urne; taille?: number }) {
   return (
-    <svg viewBox="0 0 100 110" width={taille} height={taille * 1.1} aria-hidden>
-      <rect x="14" y="26" width="72" height="78" rx="6" fill="rgba(200,230,255,0.35)" stroke="#0b1340" strokeWidth="4" />
-      <rect x="10" y="16" width="80" height="14" rx="4" fill={couleur} stroke="#0b1340" strokeWidth="4" />
-      <rect x="36" y="20" width="28" height="5" rx="2" fill="#0b1340" />
-      <rect x="30" y="50" width="22" height="30" fill="#fff" stroke="#0b1340" strokeWidth="2" transform="rotate(-12 41 65)" />
-      <rect x="48" y="58" width="22" height="30" fill="#fff" stroke="#0b1340" strokeWidth="2" transform="rotate(10 59 73)" />
-      <rect x="14" y="90" width="72" height="14" rx="4" fill={couleur} stroke="#0b1340" strokeWidth="4" />
-    </svg>
+    <div className="urne-boutique">
+      <UrneSvg couleur={urne.couleur} enveloppes={urne.objets} taille={taille} id={urne.id} />
+    </div>
   );
 }

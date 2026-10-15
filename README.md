@@ -38,9 +38,33 @@ Tant qu'une image manque, le jeu affiche une silhouette colorée avec les initia
 | Carte de légende | `public/legendes/` | `<id>-carte.webp` (ex. `macron-carte.webp`) | 768 × 1024 |
 | Intervenant | `public/intervenants/` | `praud.webp`, `hanouna.webp` | en pied, fond transparent |
 | Gilles Bouleau à son bureau | `public/decor/` | `bouleau-bureau.webp` | fond transparent |
-| Sons (facultatif) | `public/sons/` | `ovation.mp3`, `alarme.mp3`, `foule.mp3`… | — |
+| Poses animées | `public/persos/<id>/` | `neutre.webp`, `attaque.webp`… (générées par le script, voir plus bas) | 512 × 512, fond transparent |
+| Sons (facultatif) | `public/sons/` | `ovation.mp3`, `alarme.mp3`, `foule.mp3`… (liste plus bas) | — |
 
-Les identifiants (`<id>`) sont ceux des fichiers de `src/data/candidats/` et de `src/data/legendes.json` : `le-pen`, `melenchon`, `philippe`, `attal`, `glucksmann`, `retailleau`, `bertrand`, `zemmour`, `tondelier`, `roussel`, `ruffin`, `dupont-aignan`, `macron`, `hollande`, etc. Sans fichier son, le jeu joue de petits sons de synthèse.
+Les identifiants (`<id>`) sont ceux des fichiers de `src/data/candidats/` et de `src/data/legendes.json` : `le-pen`, `melenchon`, `philippe`, `attal`, `glucksmann`, `retailleau`, `bertrand`, `zemmour`, `tondelier`, `roussel`, `ruffin`, `dupont-aignan`, `macron`, `hollande`, etc.
+
+### Personnages animés (planches de 8 poses)
+
+Sur le plateau, chaque personnage change de pose selon l'action : `neutre`, `argumente`, `attaque`, `colere`, `gene`, `moquerie`, `ko`, `victoire`. Les poses viennent de planches sur fond vert (`outils/planches/`), découpées par un script :
+
+1. Dépose la planche dans `outils/planches/` et décris sa grille dans `outils/decouper-planches.mjs` (objet `PLANCHES`).
+2. `node outils/decouper-planches.mjs apercu` crée `outils/planches/apercu-*.png` avec toutes les cases.
+3. Dans `outils/planches/selection.json`, indique pour chaque personnage et chaque pose la planche à utiliser. **Ne garde que les cases qui montrent vraiment ce personnage** : une pose absente est remplacée par une pose voisine du même personnage, jamais par quelqu'un d'autre.
+4. `node outils/decouper-planches.mjs` exporte `public/persos/<id>/<pose>.webp` et la liste `src/data/poses.json`.
+
+Un personnage sans aucune pose garde son image en pied ou son portrait.
+
+### Sons
+
+Le jeu a trois canaux réglables (bouton 🔊 en bas à gauche) : musique d'émission dans les menus, rumeur du public sur le plateau (elle monte avec la jauge Ambiance, une nappe de tension s'ajoute sous 25 PV), effets et réactions du public. Tout est synthétisé dans le navigateur ; pour un son plus réaliste, dépose un fichier `public/sons/<nom>.mp3` et il remplacera la synthèse.
+
+Noms reconnus : `applaudissements`, `ovation`, `huees`, `rires`, `ooh`, `foule`, `brouhaha`, `scande`, `coup`, `critique`, `ko`, `bonne`, `erreur`, `ding`, `cloche`, `tic`, `jingle`, `legendaire`, `urne`, `cadenas`, `tampon`, `papier`, `tambour`, `clic`, ainsi que les sons des cartes chaos (`alarme`, `alerte`, `casseroles`, `tracteur`, `disco`, `notif`, `zapping`…).
+
+Sons libres de droits (CC0) : [freesound.org](https://freesound.org) (filtre « Creative Commons 0 »), [pixabay.com/sound-effects](https://pixabay.com/sound-effects/), [sonniss.com/gameaudiogdc](https://sonniss.com/gameaudiogdc) (packs gratuits).
+
+### Rythme du débat
+
+Tous les délais d'animation sont dans `src/rythme.ts`. Le bouton « ▶ ×1 / ⏩ ×2 » en bas du plateau les divise par deux, et toucher le plateau écourte l'animation en cours.
 
 ---
 
@@ -74,7 +98,7 @@ Tout le contenu est dans `src/data/`, en JSON :
 
 1. Premier lancement : tutoriel, débat guidé, puis dépouillement de 3 urnes de départ (500 Paluches, 20 Parrainages offerts).
 2. **Jouer** → débat ciblé (1 sujet, 3 manches) ou général (4 sujets tirés au sort) → choisis ton candidat et ton adversaire → ton deck (2 légendes, 3 cartes chaos, 3 refs) → débat !
-3. À chaque tour : choisis un argument, réponds à la question en 12 s. Bonne réponse = dégâts (bonus de rapidité, combo, programme adverse, refs). Mauvaise réponse = −4 PV.
+3. À chaque tour : choisis un argument, réponds à la question en 10 s. Bonne réponse = dégâts (bonus de rapidité, combo, programme adverse, refs). Mauvaise réponse = −4 PV. Les questions de l'adversaire ne s'affichent pas : on ne voit que ses coups.
 4. Jauges : **Super** (ultime), **Invocation** (légende), **Ambiance** (carte chaos, question sur le programme adverse ; ratée = −15 PV pour toi).
 
 ---
@@ -96,4 +120,4 @@ npm run build      # build de production (dossier dist/)
 - `src/sauvegarde.ts` : sauvegarde dans `localStorage`, derrière une interface `Stockage` pour passer plus tard à un compte (Supabase).
 - `src/lib/paiement.ts` : achats **simulés** (mode démo). Pour un vrai paiement : implémenter `Paiement` avec une fonction serveur Vercel (`/api/checkout`) créant une session Stripe Checkout, et créditer le compte via un webhook. L'économie (`moteur/economie.ts`) ne change pas.
 
-**Équilibrage** (`src/moteur/constantes.ts`) : 100 PV pour tous, puissances 14/16/18 et ultime 32 pour tous, chrono 12 s, IA à 60/70/80 % selon le plateau. Seules les refs équipées changent les dégâts, et seulement sur une bonne réponse.
+**Équilibrage** (`src/moteur/constantes.ts`) : 100 PV pour tous, puissances 14/16/18 et ultime 32 pour tous, chrono 10 s, IA à 60/70/80 % selon le plateau. Seules les refs équipées changent les dégâts, et seulement sur une bonne réponse.

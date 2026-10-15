@@ -10,6 +10,9 @@ import { Programmes } from './ecrans/Programmes';
 import { Selection } from './ecrans/Selection';
 import { Tutoriel } from './ecrans/Tutoriel';
 import { FournisseurJeu, useJeu } from './etat';
+import { useEffect } from 'react';
+import { ReglagesSon } from './composants/ReglagesSon';
+import { demarrerAmbiance } from './lib/son';
 
 function Routeur() {
   const { ecran, animationsReduites } = useJeu();
@@ -48,9 +51,13 @@ function Routeur() {
     default:
       vue = <Accueil />;
   }
+  // Ambiance sonore : rumeur du plateau pendant le débat, musique d'émission ailleurs.
+  const ambiance = ecran.nom === 'combat' ? 'plateau' : 'menu';
+  useEffect(() => demarrerAmbiance(ambiance), [ambiance]);
   return (
     <div className={`app ${animationsReduites ? 'animations-reduites' : ''}`}>
       {vue}
+      <ReglagesSon />
     </div>
   );
 }

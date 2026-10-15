@@ -1,7 +1,7 @@
 // Tous les réglages d'équilibrage au même endroit.
 
 export const PV_MAX = 100;
-export const CHRONO = 12;
+export const CHRONO = 10;
 export const PENALITE_ERREUR = 4;
 export const PENALITE_CHAOS_RATE = 15;
 

@@ -7,7 +7,7 @@ import { useJeu } from '../etat';
 const ETAPES = [
   { titre: 'Bienvenue sur le plateau !', texte: 'Dans Débat Royale, les candidats à la présidentielle 2027 s’affrontent dans un débat télévisé. Ton arme : la connaissance des programmes.' },
   { titre: 'Choisis un argument', texte: 'À chaque tour, choisis un des 3 arguments de ton candidat sur le sujet annoncé par le modérateur. Chaque argument est une vraie mesure de son programme.' },
-  { titre: 'Réponds à la question', texte: 'Une question s’affiche, 4 réponses, 12 secondes. Bonne réponse : ton argument frappe. Mauvaise réponse : ton candidat s’emmêle les pinceaux et perd 4 PV.' },
+  { titre: 'Réponds à la question', texte: 'Une question s’affiche, 4 réponses, 10 secondes. Bonne réponse : ton argument frappe. Mauvaise réponse : ton candidat s’emmêle les pinceaux et perd 4 PV. Les questions de ton adversaire restent secrètes : tu ne vois que ses coups.' },
   { titre: 'Plus tu es rapide, plus tu fais mal', texte: 'Réponds avec plus de 60 % du temps restant pour un coup critique. Enchaîne les bonnes réponses pour un combo.' },
   { titre: 'Trois jauges', texte: 'Super (3 bonnes réponses) → attaque ultime. Invocation (questions de parcours) → une légende entre sur le plateau. Ambiance (critiques et combos) → carte chaos !' },
   { titre: 'Le chaos', texte: 'Invasion du public, plateau en feu, Pascal Praud qui débarque… Pour lancer une carte chaos, réponds juste sur le programme de ton adversaire. Sinon, le chaos se retourne contre toi !' },

@@ -8,14 +8,14 @@ describe('calculerDegats', () => {
   });
 
   it('bonus de rapidité maximal à chrono plein, avec coup critique', () => {
-    const r = calculerDegats({ puissance: 20, tempsRestant: 12, combo: 0, surProgrammeAdverse: false });
+    const r = calculerDegats({ puissance: 20, tempsRestant: 10, combo: 0, surProgrammeAdverse: false });
     expect(r.degats).toBe(30);
     expect(r.critique).toBe(true);
   });
 
   it('critique seulement au-delà de 60 % du temps', () => {
-    expect(calculerDegats({ puissance: 10, tempsRestant: 7.2, combo: 0, surProgrammeAdverse: false }).critique).toBe(false);
-    expect(calculerDegats({ puissance: 10, tempsRestant: 7.3, combo: 0, surProgrammeAdverse: false }).critique).toBe(true);
+    expect(calculerDegats({ puissance: 10, tempsRestant: 6.0, combo: 0, surProgrammeAdverse: false }).critique).toBe(false);
+    expect(calculerDegats({ puissance: 10, tempsRestant: 6.1, combo: 0, surProgrammeAdverse: false }).critique).toBe(true);
   });
 
   it('combo, programme adverse et refs se multiplient', () => {

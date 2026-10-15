@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useMemo, useState } from 'react';
+import { aDesPoses, PersoAnime } from '../composants/PersoAnime';
 import { Portrait } from '../composants/Portrait';
 import { Logo } from '../composants/Logo';
 import { contenu, infoSujet } from '../donnees';
@@ -51,7 +52,7 @@ function CarteCombattant({
       disabled={!onClick}
     >
       <span className="combattant-art">
-        <Portrait id={id} taille={140} />
+        {aDesPoses(id) ? <PersoAnime id={id} pose={actif ? 'moquerie' : 'neutre'} taille={140} className="perso-vignette" /> : <Portrait id={id} taille={140} />}
       </span>
       <span className="combattant-nom">{nom.toUpperCase()}</span>
       <span className="combattant-surnom">{surnom.toUpperCase()}</span>

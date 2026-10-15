@@ -7,15 +7,18 @@ import { Portrait } from '../composants/Portrait';
 import { contenu, infoSujet, nomDe, replique } from '../donnees';
 import { useJeu } from '../etat';
 import { precharger, sourcesIntervenant, sourcesLegende, sourcesModerateur, toutesSources } from '../lib/assets';
-import { jouer } from '../lib/son';
+import { duck, intensiteAmbiance, jouer, reactionPublic, silence, tension } from '../lib/son';
 import { actionsPossibles, creerCombat, reduire, scoreCulture, sujetEnCours } from '../moteur/combat';
 import { appliquerCombat, plateauActuel } from '../moteur/economie';
 import type { Camp, CarteChaos, ConfigCombat, EffetLegende, EtatCombat, Evenement, SujetId } from '../moteur/types';
 import { ChaosScene } from '../scenes/ChaosScene';
 import { Plateau, type ApiPlateau, type Degat } from '../scenes/Plateau';
 import type { Reaction } from '../scenes/Public';
+import { sourcesPoses, type Pose } from '../composants/PersoAnime';
+import { changerVitesse, duree, vitesseRapide } from '../rythme';
+import { CHRONO } from '../moteur/constantes';
 
-const attendre = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const autreCamp = (c: Camp): Camp => (c === 'joueur' ? 'adversaire' : 'joueur');
 
 const EFFETS_LEGENDE: Record<EffetLegende, string> = {
   attaque: 'Grosse attaque',
@@ -71,6 +74,9 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
   const [chaos, setChaos] = useState<{ carte: CarteChaos; lanceur: Camp; reussi: boolean; degats: number } | null>(null);
   const [mesuresNouvelles, setMesuresNouvelles] = useState<string[]>([]);
   const [ko, setKo] = useState(false);
+  const [poses, setPoses] = useState<Record<Camp, Pose>>({ joueur: 'neutre', adversaire: 'neutre' });
+  const [rate, setRate] = useState<Camp | null>(null);
+  const [rapide, setRapide] = useState(vitesseRapide);
   const plateauRef = useRef<ApiPlateau>(null);
   const racine = useRef<HTMLElement>(null);
   const consoleRef = useRef<HTMLElement>(null);
@@ -86,7 +92,10 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
   const finChaos = useRef<(() => void) | null>(null);
   const vus = useRef(0);
   const idDegat = useRef(0);
-  const tempsRestant = useRef(12);
+  const tempsRestant = useRef(CHRONO);
+  const minuteursPose = useRef<Partial<Record<Camp, ReturnType<typeof setTimeout>>>>({});
+  const sauter = useRef<(() => void) | null>(null);
+  const finie = useRef(false);
   const fileEvenements = useRef<Promise<void>>(Promise.resolve());
   const enAttente = useRef(0);
 
@@ -100,7 +109,29 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
     });
   };
 
-  const vitesse = reduit ? 0.5 : 1;
+  const D = (cle: Parameters<typeof duree>[0]) => duree(cle, reduit);
+
+  // Pause d'animation qu'un clic sur le plateau peut écourter.
+  const attendre = (ms: number) =>
+    new Promise<void>((r) => {
+      const fin = () => {
+        clearTimeout(t);
+        if (sauter.current === fin) sauter.current = null;
+        r();
+      };
+      const t = setTimeout(fin, ms);
+      sauter.current = fin;
+    });
+
+  /** Change la pose d'un camp ; elle revient au neutre après un moment (sauf K.O. et victoire). */
+  const poser = (camp: Camp, pose: Pose, retour = true) => {
+    clearTimeout(minuteursPose.current[camp]);
+    setPoses((p) => ({ ...p, [camp]: pose }));
+    if (retour && pose !== 'ko' && pose !== 'victoire') {
+      minuteursPose.current[camp] = setTimeout(() => setPoses((p) => (p[camp] === pose ? { ...p, [camp]: 'neutre' } : p)), D('retourPose'));
+    }
+  };
+
   const nomCamp = (camp: Camp) => nomDe(etatRef.current.camps[camp].persoId);
 
   const direModo = (texte: string) => {
@@ -127,7 +158,7 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
       .flatMap((id) => cat.chaos.get(id)?.scene.acteurs ?? [])
       .filter((a) => !a.sprite.startsWith('svg:'))
       .flatMap((a) => sourcesIntervenant(a.sprite));
-    precharger([...ids.flatMap(toutesSources), ...legs.flatMap(sourcesLegende), ...sourcesModerateur(), ...intervenants]).then(() => setPret(true));
+    precharger([...ids.flatMap(toutesSources), ...ids.flatMap(sourcesPoses), ...legs.flatMap(sourcesPoses), ...legs.flatMap(sourcesLegende), ...sourcesModerateur(), ...intervenants]).then(() => setPret(true));
     jouer('ovation');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -141,7 +172,9 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
         if (fiche?.entree) {
           setBulles((b) => ({ ...b, [camp]: <RepliqueSourcee texte={fiche.entree!.replique} source={fiche.entree!.source} /> }));
           reagir(camp, 'applaudit');
-          await attendre(1800 * vitesse);
+          poser(camp, 'argumente');
+          duck(D('entree'));
+          await attendre(D('entree'));
           setBulles((b) => ({ ...b, [camp]: undefined }));
         }
       }
@@ -156,17 +189,18 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
       case 'annonce': {
         const sujet = infoSujet(ev.sujet);
         const derniere = ev.manche === e.manches.length && ev.manche > 1;
-        jouer('ding');
+        jouer(ev.manche > 1 ? 'cloche' : 'ding');
         direModo(`${derniere ? replique('derniereManche') + ' ' : ''}${sujet.annonces[(ev.manche - 1) % sujet.annonces.length]}`);
-        await attendre(1500 * vitesse);
+        await attendre(D('annonce'));
         break;
       }
       case 'attaque': {
         const cible: Camp = ev.camp === 'joueur' ? 'adversaire' : 'joueur';
         if (ev.ultime) {
           direModo(replique('ultime'));
-          await attendre(500 * vitesse);
+          await attendre(D('ultimeAnnonce'));
         }
+        poser(ev.camp, 'attaque');
         setBulles((b) => ({
           ...b,
           [ev.camp]: {
@@ -181,15 +215,17 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
         }));
         setFrappe(ev.camp);
         jouer(ev.critique ? 'critique' : 'coup');
-        await attendre(300 * vitesse);
+        await attendre(D('avantDegat'));
         ajouterDegat({ camp: cible, valeur: ev.degats, critique: ev.critique });
+        poser(cible, ev.critique || ev.ultime ? 'colere' : 'gene');
         if (ev.critique || ev.ultime) plateauRef.current?.secouer(ev.ultime ? 1.6 : 1);
         reagir(ev.camp, ev.critique ? 'debout' : 'applaudit');
+        if (ev.critique || ev.ultime) jouer('ooh');
         if (ev.critique) {
           direModo(replique('critique'));
           plateauRef.current?.particules()?.emettre('etincelles', { x: cible === 'joueur' ? 0.24 : 0.76, y: 0.5, nombre: 50 });
         }
-        await attendre(1300 * vitesse);
+        await attendre(D('apresCoup'));
         setFrappe(null);
         setBulles((b) => ({ ...b, [ev.camp]: undefined }));
         break;
@@ -199,42 +235,53 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
         jouer('erreur');
         ajouterDegat({ camp: ev.camp, valeur: ev.degats });
         reagir(ev.camp, 'hue');
+        reagir(autreCamp(ev.camp), 'rit');
+        poser(ev.camp, 'colere');
+        poser(autreCamp(ev.camp), 'moquerie');
+        setRate(ev.camp);
         direModo(replique('erreur'));
-        await attendre(1300 * vitesse);
+        await attendre(D('erreur'));
+        setRate(null);
         setBulles((b) => ({ ...b, [ev.camp]: undefined }));
         break;
       case 'bouclier':
         ajouterDegat({ camp: ev.camp, valeur: 0, texte: 'BLOQUÉ !' });
+        poser(ev.camp, 'moquerie');
         direModo(replique('bouclier'));
-        await attendre(900 * vitesse);
+        await attendre(D('bouclier'));
         break;
       case 'legende': {
         const fiche = cat.legendes.get(ev.legendeId);
         if (!fiche) break;
         if (ev.reussi) {
           setLegendeEntree({ id: fiche.id, camp: ev.camp });
+          duck(2000);
+          jouer('legendaire');
           direModo(replique('legende'));
-          jouer('applaudissements');
           setReactions({ joueur: 'applaudit', adversaire: 'applaudit' });
           setBulles((b) => ({
             ...b,
             [ev.camp]: fiche.entree ? <RepliqueSourcee texte={fiche.entree.replique} source={fiche.entree.source} /> : <strong>{fiche.nom} entre sur le plateau !</strong>,
           }));
-          await attendre(1600 * vitesse);
+          poser(ev.camp, 'victoire', false);
+          await attendre(D('legendeEntree'));
           const cible: Camp = ev.camp === 'joueur' ? 'adversaire' : 'joueur';
           if (ev.effet === 'attaque') {
             ajouterDegat({ camp: cible, valeur: ev.valeur });
+            poser(cible, 'gene');
             plateauRef.current?.secouer();
           } else if (ev.effet === 'soin') ajouterDegat({ camp: ev.camp, valeur: ev.valeur, soin: true });
           else if (ev.effet === 'bouclier') ajouterDegat({ camp: ev.camp, valeur: 0, texte: 'BOUCLIER' });
           else ajouterDegat({ camp: ev.camp, valeur: ev.valeur, texte: `COMBO +${ev.valeur}` });
-          await attendre(1000 * vitesse);
+          await attendre(D('legendeEffet'));
+          poser(ev.camp, 'neutre');
           setLegendeEntree(null);
           setReactions({ joueur: 'calme', adversaire: 'calme' });
           setBulles((b) => ({ ...b, [ev.camp]: undefined }));
         } else {
           direModo(replique('legendeRatee'));
-          await attendre(1000 * vitesse);
+          poser(ev.camp, 'gene');
+          await attendre(D('erreur'));
         }
         break;
       }
@@ -250,40 +297,55 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
         setEcranSpecial(null);
         const cible: Camp = ev.reussi ? (ev.camp === 'joueur' ? 'adversaire' : 'joueur') : ev.camp;
         if (ev.degats > 0) ajouterDegat({ camp: cible, valeur: ev.degats });
-        if (!ev.reussi) direModo(replique('chaosRate'));
-        await attendre(600 * vitesse);
+        if (ev.reussi) {
+          poser(ev.camp, 'moquerie');
+          poser(cible, 'gene');
+        } else {
+          poser(ev.camp, 'colere');
+          direModo(replique('chaosRate'));
+        }
+        await attendre(D('apresChaos'));
         break;
       }
       case 'brulure':
         plateauRef.current?.particules()?.emettre('feu', { x: ev.camp === 'joueur' ? 0.24 : 0.76, y: 0.7, largeur: 0.08, duree: 0.8, nombre: 2 });
         ajouterDegat({ camp: ev.camp, valeur: ev.degats });
+        poser(ev.camp, 'gene');
         direModo(replique('brulure'));
-        await attendre(1000 * vitesse);
+        await attendre(D('brulure'));
         break;
       case 'tourPerdu':
         direModo(replique('tourPerdu'));
         setBulles((b) => ({ ...b, [ev.camp]: '…' }));
-        await attendre(1300 * vitesse);
+        poser(ev.camp, 'gene');
+        await attendre(D('tourPerdu'));
         setBulles((b) => ({ ...b, [ev.camp]: undefined }));
         break;
       case 'soin':
         ajouterDegat({ camp: ev.camp, valeur: ev.valeur, soin: true });
-        await attendre(500 * vitesse);
+        await attendre(D('soin'));
         break;
       case 'mesure':
         setMesuresNouvelles((l) => [...l, ev.mesureId]);
         break;
       case 'changeSujet':
-        direModo(`On m'apprend qu'on change de sujet ! Place à : ${infoSujet(ev.sujet).libelle}.`);
-        await attendre(1200 * vitesse);
+        direModo(`On change de sujet ! Place à : ${infoSujet(ev.sujet).libelle}.`);
+        await attendre(D('changeSujet'));
         break;
       case 'ko':
         setKo(true);
         jouer('ko');
+        // Silence brutal, puis « Ohhh » et la salle explose.
+        silence(800);
+        poser(ev.camp, 'ko', false);
+        poser(autreCamp(ev.camp), 'victoire', false);
         direModo(replique('ko'));
-        plateauRef.current?.particules()?.emettre('confettis', { duree: 2, nombre: 5 });
-        setReactions({ joueur: ev.camp === 'joueur' ? 'hue' : 'debout', adversaire: ev.camp === 'adversaire' ? 'hue' : 'debout' });
-        await attendre(2200 * vitesse);
+        setTimeout(() => {
+          jouer('ooh');
+          plateauRef.current?.particules()?.emettre('confettis', { duree: 2, nombre: 5 });
+          setReactions({ joueur: ev.camp === 'joueur' ? 'hue' : 'debout', adversaire: ev.camp === 'adversaire' ? 'hue' : 'debout' });
+        }, 700);
+        await attendre(D('ko'));
         break;
     }
   };
@@ -304,17 +366,28 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
   useEffect(() => {
     if (!pret || anime) return;
     if (etat.phase === 'annonce') {
-      const t = setTimeout(() => envoyer({ type: 'commencerManche' }), 300);
+      const t = setTimeout(() => envoyer({ type: 'commencerManche' }), D('commencerManche'));
       return () => clearTimeout(t);
     }
     if (etat.phase === 'choix' && etat.actif === 'adversaire') {
-      direModo(replique('aVous', { nom: nomCamp('adversaire') }));
-      const t = setTimeout(() => envoyer({ type: 'tourIA' }), 1100 * vitesse);
+      // L'adversaire réfléchit : on ne montre ni son argument ni sa question.
+      setTexteModo(replique('aVous', { nom: nomCamp('adversaire') }));
+      poser('adversaire', 'argumente', false);
+      setBulles((b) => ({ ...b, adversaire: '…' }));
+      const t = setTimeout(() => {
+        setBulles((b) => ({ ...b, adversaire: undefined }));
+        envoyer({ type: 'tourIA' });
+      }, D('reflexionIA'));
       return () => clearTimeout(t);
     }
     if (etat.phase === 'choix' && etat.actif === 'joueur') setTexteModo(replique('aVous', { nom: nomCamp('joueur') }));
-    if (etat.phase === 'fin') {
+    if (etat.phase === 'fin' && !finie.current) {
+      finie.current = true;
       const victoire = etat.vainqueur === 'joueur';
+      if (!ko) {
+        poser(victoire ? 'joueur' : 'adversaire', 'victoire', false);
+        poser(victoire ? 'adversaire' : 'joueur', 'gene', false);
+      }
       const j = etat.camps.joueur;
       const { profil: nouveau, gains } = appliquerCombat(
         profil,
@@ -323,18 +396,45 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
       );
       majProfil(() => (tutoriel ? { ...nouveau, tutorielFait: true } : nouveau));
       jouer(victoire ? 'ovation' : 'huees');
-      aller({ nom: 'fin', etat, gains, tutoriel });
+      setTimeout(() => aller({ nom: 'fin', etat, gains, tutoriel }), ko ? 300 : 1400);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [etat, anime, pret]);
 
-  // Réponse de l'IA : on la laisse lisible un moment, puis on continue.
+  // Après une réponse : l'adversaire enchaîne seul (rien n'est affiché), une
+  // bonne réponse du joueur aussi après un court instant. Une mauvaise réponse
+  // attend un clic, pour laisser le temps de lire la bonne réponse.
   useEffect(() => {
-    if (pret && !anime && etat.phase === 'resultat' && etat.resolution?.repondant === 'adversaire') {
-      const t = setTimeout(() => envoyer({ type: 'suite' }), 3800 * vitesse);
+    if (!pret || anime || etat.phase !== 'resultat' || !etat.resolution) return;
+    const r = etat.resolution;
+    if (r.repondant === 'adversaire' || r.correct) {
+      const t = setTimeout(() => envoyer({ type: 'suite' }), D(r.repondant === 'adversaire' ? 'suiteIA' : 'suiteBonne'));
       return () => clearTimeout(t);
     }
-  }, [etat.phase, etat.resolution, anime, pret, envoyer, vitesse]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etat.phase, etat.resolution, anime, pret, envoyer]);
+
+  // --- son : réactions du public, rumeur qui suit la jauge Ambiance, tension sous 25 PV ---
+  const reactionsJouees = useRef<Record<Camp, Reaction>>({ joueur: 'calme', adversaire: 'calme' });
+  useEffect(() => {
+    const avant = reactionsJouees.current;
+    reactionsJouees.current = reactions;
+    const nouvelles = new Set((['joueur', 'adversaire'] as Camp[]).filter((c) => reactions[c] !== avant[c] && reactions[c] !== 'calme').map((c) => reactions[c]));
+    nouvelles.forEach(reactionPublic);
+  }, [reactions]);
+  useEffect(() => intensiteAmbiance(Math.max(etat.camps.joueur.ambiance, etat.camps.adversaire.ambiance) / 100), [etat.camps.joueur.ambiance, etat.camps.adversaire.ambiance]);
+  const danger = etat.camps.joueur.pv < 25 || etat.camps.adversaire.pv < 25;
+  useEffect(() => {
+    tension(danger && etat.phase !== 'fin');
+    return () => tension(false);
+  }, [danger, etat.phase]);
+
+  // Le joueur réfléchit pendant sa question.
+  const idQuestion = etat.questionEnCours?.repondant === 'joueur' ? etat.questionEnCours.question.id : null;
+  useEffect(() => {
+    if (idQuestion) poser('joueur', 'argumente', false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idQuestion]);
 
   const repondre = useCallback(
     (choix: number | null) => {
@@ -360,15 +460,14 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
   const ficheJ = cat.candidats.get(J.persoId)!;
   const ficheA = cat.candidats.get(A.persoId)!;
   const argsJ = ficheJ.arguments[sujet] ?? [];
-  const argsA = ficheA.arguments[sujet] ?? [];
   const bloques = new Set(J.effets.flatMap((x) => (x.type === 'argumentBloque' ? [x.argId] : [])));
   const enQuestion = !!q && q.repondant === 'joueur' && !anime;
-  const enResultat = etat.phase === 'resultat' && !!etat.resolution && !anime;
+  const enResultat = etat.phase === 'resultat' && !!etat.resolution && etat.resolution.repondant === 'joueur' && !anime;
   const tuto = tutoriel ? texteTutoriel(etat, anime) : null;
 
   return (
     <main ref={racine} className={`ecran-combat ${reduit ? 'reduit' : ''}`}>
-      <div className="scene-combat">
+      <div className="scene-combat" onClick={() => sauter.current?.()}>
         <Plateau
           ref={plateauRef}
           decor={plateauInfo.decor}
@@ -379,6 +478,7 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
           adversaire={A.persoId}
           tenueJoueur={profil.tenuesPortees[J.persoId]}
           reactions={reactions}
+          poses={poses}
           bulles={bulles}
           degats={degats}
           frappe={frappe}
@@ -401,6 +501,11 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
             />
           )}
           {ko && <div className="ko-texte">K.O. !</div>}
+          {rate && (
+            <motion.div className={`sticker-rate cote-${rate}`} initial={{ scale: 0 }} animate={{ scale: [0, 1.3, 1] }} transition={{ duration: 0.3 }}>
+              RATÉ !
+            </motion.div>
+          )}
           {!pret && <div className="chargement-plateau">Installation du plateau…</div>}
         </Plateau>
 
@@ -530,15 +635,6 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
             </div>
 
             <div className="console-camp console-adversaire">
-              <div className="cartes-attaque">
-                {argsA.map((a, i) => (
-                  <div key={a.id} className="carte-attaque adverse" title="Argument de l’adversaire (visible pour apprendre)">
-                    <span className="carte-attaque-art">{iconeArgument(sujet, i + 3)}</span>
-                    <span className="carte-attaque-nom">{a.nom}</span>
-                    <span className="carte-attaque-effet">« {a.bulle} »</span>
-                  </div>
-                ))}
-              </div>
               <div className="badges">
                 <BadgeSuper valeur={A.super} camp="adversaire" />
                 {etat.actif === 'adversaire' && etat.phase === 'choix' && <span className="ia-reflechit">{ficheA.nom.split(' ').slice(-1)[0]} prépare sa réponse…</span>}
@@ -562,6 +658,17 @@ export function Combat({ config, tutoriel }: { config: ConfigCombat; tutoriel?: 
         Mêmes politiques,
         <br /> nouveaux combats ♥
       </div>
+      <button
+        type="button"
+        className={`bouton-vitesse ${rapide ? 'actif' : ''}`}
+        onClick={() => {
+          changerVitesse(!rapide);
+          setRapide(!rapide);
+        }}
+        title="Accélérer les animations du débat"
+      >
+        {rapide ? '⏩ ×2' : '▶ ×1'}
+      </button>
       <button type="button" className="bouton-abandon" onClick={() => aller({ nom: 'accueil' })} title="Quitter le débat">
         ✕ Quitter
       </button>
@@ -729,20 +836,17 @@ function PanneauQuestion({
 function PanneauResultat({ etat, onSuite }: { etat: EtatCombat; onSuite: () => void }) {
   const r = etat.resolution!;
   const q = r.question;
-  const parIA = r.repondant === 'adversaire';
   return (
     <motion.div className={`panneau-resultat ${r.correct ? 'juste' : 'faux'}`} initial={{ y: 30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ opacity: 0 }}>
       <div className="resultat-tete">
-        <span className="resultat-verdict">
-          {parIA ? `${nomDe(etat.camps.adversaire.persoId)} : ${r.correct ? 'bonne réponse' : 'raté !'}` : r.correct ? 'Bonne réponse !' : r.choix === null ? 'Temps écoulé !' : 'Mauvaise réponse'}
-        </span>
+        <span className="resultat-verdict">{r.correct ? 'Bonne réponse !' : r.choix === null ? 'Temps écoulé !' : 'Mauvaise réponse'}</span>
       </div>
       <p className="resultat-question">{q.question}</p>
       <p className="resultat-bonne">✔ {q.choix[r.bonne]}</p>
-      <p className="resultat-explication">{r.explication}</p>
+      {!r.correct && <p className="resultat-explication">{r.explication}</p>}
       <LienSource source={r.source} />
-      <Bouton variante={parIA ? 'gris' : 'or'} onClick={onSuite}>
-        Continuer
+      <Bouton variante="or" onClick={onSuite}>
+        {r.correct ? 'Continuer ⏩' : 'Continuer'}
       </Bouton>
     </motion.div>
   );
@@ -755,7 +859,7 @@ function texteTutoriel(e: EtatCombat, anime: boolean): string | null {
     if (e.camps.joueur.super >= 3) return 'Ta jauge Super est pleine : lance ton ULTIME !';
     if (e.camps.joueur.ambiance >= 100) return 'Ambiance pleine : joue une carte chaos (question sur le programme adverse).';
     if (e.camps.joueur.invocation >= 2) return 'Jauge Invocation pleine : appelle une légende sur le plateau.';
-    return 'Les arguments de l’adversaire sont visibles en bas : c’est aussi pour apprendre !';
+    return 'Les questions de ton adversaire restent secrètes : tu ne vois que ses coups. Touche le plateau pour accélérer une animation.';
   }
   if (e.phase === 'question' && e.questionEnCours?.repondant === 'joueur') return 'Réponds vite : plus il reste de temps, plus tu frappes fort (coup critique au-delà de 60 %).';
   if (e.phase === 'resultat' && e.resolution?.repondant === 'joueur') return 'Chaque bonne réponse débloque une mesure dans les fiches Programmes.';

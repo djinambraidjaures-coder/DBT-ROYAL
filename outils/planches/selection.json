@@ -1,0 +1,23 @@
+{
+  "_lisezmoi": "Pour chaque personnage, la planche (p1 ou p2) dont la case est gardée pour chaque pose. Une pose absente = aucune case ne montre vraiment ce personnage : elle n'est pas exportée et le jeu utilise une pose de repli du même personnage.",
+  "macron": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "moquerie": "p2", "victoire": "p2" },
+  "le-pen": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p2", "ko": "p2" },
+  "melenchon": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p1", "moquerie": "p1" },
+  "philippe": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p1", "moquerie": "p1", "victoire": "p2" },
+  "attal": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p1", "gene": "p1", "moquerie": "p1", "ko": "p1", "victoire": "p1" },
+  "dati": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p1", "moquerie": "p2", "ko": "p1" },
+  "bertrand": { "neutre": "p2", "argumente": "p2", "attaque": "p1", "colere": "p1", "gene": "p2", "moquerie": "p1" },
+  "bayrou": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p1" },
+  "hidalgo": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p2", "victoire": "p2" },
+  "bardella": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "moquerie": "p1", "victoire": "p1" },
+  "zemmour": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p1", "moquerie": "p1", "victoire": "p1" },
+  "pecresse": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p1", "victoire": "p1" },
+  "poutou": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p1", "victoire": "p2" },
+  "dupont-aignan": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p1", "moquerie": "p1", "victoire": "p1" },
+  "asselineau": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p1", "ko": "p2", "victoire": "p1" },
+  "loiseau": { "neutre": "p2", "argumente": "p2", "attaque": "p2", "colere": "p2", "gene": "p2", "moquerie": "p2", "victoire": "p2" },
+  "lavrilleux": { "neutre": "p1", "argumente": "p1", "attaque": "p1", "colere": "p1" },
+  "roussel": { "neutre": "p1", "argumente": "p1", "attaque": "p1", "colere": "p1" },
+  "royal": { "neutre": "p1", "argumente": "p1", "attaque": "p1", "colere": "p1" },
+  "wauquiez": { "neutre": "p1", "argumente": "p1", "attaque": "p1", "colere": "p1" }
+}

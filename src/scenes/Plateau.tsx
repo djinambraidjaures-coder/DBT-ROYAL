@@ -4,6 +4,7 @@
 
 import { AnimatePresence, motion, useAnimationControls } from 'framer-motion';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
+import { aDesPoses, PersoAnime, type Pose } from '../composants/PersoAnime';
 import { Portrait } from '../composants/Portrait';
 import { infoSujet, nomDe } from '../donnees';
 
@@ -43,6 +44,7 @@ interface Props {
   adversaire: string;
   tenueJoueur?: string;
   reactions: Record<Camp, Reaction>;
+  poses: Record<Camp, Pose>;
   bulles: Partial<Record<Camp | 'moderateur', BulleCombat | ReactNode>>;
   degats: Degat[];
   frappe: Camp | null;
@@ -184,7 +186,7 @@ export const Plateau = forwardRef<ApiPlateau, Props>(function Plateau(p, ref) {
         animate={p.frappe === 'joueur' ? { x: [0, 50, 0], rotate: [0, 4, 0] } : { y: [0, -6, 0] }}
         transition={p.frappe === 'joueur' ? { duration: 0.35 } : { duration: 2.4, repeat: Infinity }}
       >
-        <Portrait id={p.joueur} variante="pied" taille={260} tenue={p.tenueJoueur} />
+        <PersoAnime id={p.joueur} pose={p.poses.joueur} taille={260} tenue={p.tenueJoueur} reduit={p.reduit} />
         <div className="pupitre-devant pupitre-devant-joueur">{nomCourt(p.joueur)}</div>
       </motion.div>
       <motion.div
@@ -192,7 +194,7 @@ export const Plateau = forwardRef<ApiPlateau, Props>(function Plateau(p, ref) {
         animate={p.frappe === 'adversaire' ? { x: [0, -50, 0], rotate: [0, -4, 0] } : { y: [0, -6, 0] }}
         transition={p.frappe === 'adversaire' ? { duration: 0.35 } : { duration: 2.6, repeat: Infinity }}
       >
-        <Portrait id={p.adversaire} variante="pied" taille={260} miroir />
+        <PersoAnime id={p.adversaire} pose={p.poses.adversaire} taille={260} miroir teinte={p.joueur === p.adversaire ? 150 : undefined} reduit={p.reduit} />
         <div className="pupitre-devant pupitre-devant-adversaire">{nomCourt(p.adversaire)}</div>
       </motion.div>
 
@@ -206,7 +208,11 @@ export const Plateau = forwardRef<ApiPlateau, Props>(function Plateau(p, ref) {
             exit={{ opacity: 0, scale: 0.7 }}
             transition={{ type: 'spring', stiffness: 160, damping: 14 }}
           >
-            <Portrait id={p.legendeEntree.id} variante="pied" taille={150} />
+            {aDesPoses(p.legendeEntree.id) ? (
+              <PersoAnime id={p.legendeEntree.id} pose="attaque" taille={150} miroir={p.legendeEntree.camp === 'adversaire'} reduit={p.reduit} />
+            ) : (
+              <Portrait id={p.legendeEntree.id} variante="pied" taille={150} />
+            )}
           </motion.div>
         )}
       </AnimatePresence>

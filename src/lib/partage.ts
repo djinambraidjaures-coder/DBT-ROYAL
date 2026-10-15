@@ -81,7 +81,7 @@ export async function partager(d: DonneesPartage): Promise<'partage' | 'telechar
   return 'telecharge';
 }
 
-/** Image d'un tirage de pack (liste des cartes obtenues), à partager ou télécharger. */
+/** Image d'un dépouillement d'urne (liste des cartes obtenues), à partager ou télécharger. */
 export async function partagerTirage(cartes: { rarete: string; nom: string; texte: string }[]): Promise<'partage' | 'telecharge' | 'echec'> {
   const c = document.createElement('canvas');
   c.width = 1080;
@@ -101,7 +101,7 @@ export async function partagerTirage(cartes: { rarete: string; nom: string; text
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
   ctx.font = '90px Bangers, system-ui';
-  ctx.fillText('OUVERTURE DE PACK !', 540, 130);
+  ctx.fillText('MON DÉPOUILLEMENT !', 540, 130);
   const couleurs: Record<string, string> = { COMMUNE: '#3ddc6a', RARE: '#3fa2ff', ÉPIQUE: '#b46cff', LÉGENDAIRE: '#ffcc33' };
   cartes.slice(0, 8).forEach((x, i) => {
     const y = 200 + i * 135;

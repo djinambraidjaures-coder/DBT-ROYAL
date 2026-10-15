@@ -1,0 +1,166 @@
+{
+  "macron": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "moquerie",
+    "victoire"
+  ],
+  "le-pen": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "ko"
+  ],
+  "melenchon": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie"
+  ],
+  "philippe": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "attal": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "ko",
+    "victoire"
+  ],
+  "dati": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "ko"
+  ],
+  "bertrand": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie"
+  ],
+  "bayrou": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie"
+  ],
+  "hidalgo": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "bardella": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "moquerie",
+    "victoire"
+  ],
+  "zemmour": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "pecresse": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "poutou": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "dupont-aignan": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "asselineau": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "ko",
+    "victoire"
+  ],
+  "loiseau": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere",
+    "gene",
+    "moquerie",
+    "victoire"
+  ],
+  "lavrilleux": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere"
+  ],
+  "roussel": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere"
+  ],
+  "royal": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere"
+  ],
+  "wauquiez": [
+    "neutre",
+    "argumente",
+    "attaque",
+    "colere"
+  ]
+}

@@ -21,10 +21,12 @@ export function Chrono({ duree, actif, onFin, onTick }: { duree: number; actif: 
       const t = Math.max(0, duree - (performance.now() - debut.current) / 1000);
       setReste(t);
       onTick?.(t);
-      const s = Math.ceil(t);
+      // Tic-tac qui accélère : 1 par seconde, puis 2, puis 4 dans la dernière seconde.
+      const pasTic = t > 3 ? 1 : t > 1 ? 0.5 : 0.25;
+      const s = Math.ceil(t / pasTic);
       if (s !== derniereSeconde.current) {
         derniereSeconde.current = s;
-        if (s <= 3 && s > 0) jouer('tic');
+        if (t > 0 && t <= 5) jouer('tic');
       }
       if (t <= 0) {
         if (!fini.current) {
